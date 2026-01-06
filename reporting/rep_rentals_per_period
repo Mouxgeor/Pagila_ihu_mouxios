@@ -1,0 +1,78 @@
+CREATE OR REPLACE TABLE `warm-influence-480112-t2.reporting_db.rep_rentals_per_period` AS
+
+WITH rentals AS (
+  SELECT *
+  FROM `warm-influence-480112-t2.staging_db.stg_rental`
+),
+
+reporting_dates AS (
+  SELECT *
+  FROM `warm-influence-480112-t2.reporting_db.reporting_periods_table`
+  WHERE reporting_period IN ('Day', 'Month', 'Year')
+),
+
+rentals_per_period AS (
+  SELECT
+      'Day' AS reporting_period,
+      DATE(DATE_TRUNC(rental_date, DAY))   AS reporting_date,
+      COUNT(*) AS total_rentals
+  FROM rentals
+  GROUP BY 1, 2
+
+  UNION ALL
+
+  SELECT
+      'Month' AS reporting_period,
+      DATE(DATE_TRUNC(rental_date, MONTH)) AS reporting_date,
+      COUNT(*) AS total_rentals
+  FROM rentals
+  GROUP BY 1, 2
+
+  UNION ALL
+
+  SELECT
+      'Year' AS reporting_period,
+      DATE(DATE_TRUNC(rental_date, YEAR))  AS reporting_date,
+      COUNT(*) AS total_rentals
+  FROM rentals
+  GROUP BY 1, 2
+),
+
+final AS (
+  SELECT
+      rd.reporting_period,
+      rd.reporting_date,
+      IFNULL(rpp.total_rentals, 0) AS total_rentals
+  FROM reporting_dates rd
+  LEFT JOIN rentals_per_period rpp
+    ON rd.reporting_period = rpp.reporting_period
+   AND rd.reporting_date   = rpp.reporting_date
+  WHERE rd.reporting_period = 'Day'
+
+  UNION ALL
+
+  SELECT
+      rd.reporting_period,
+      rd.reporting_date,
+      IFNULL(rpp.total_rentals, 0) AS total_rentals
+  FROM reporting_dates rd
+  LEFT JOIN rentals_per_period rpp
+    ON rd.reporting_period = rpp.reporting_period
+   AND rd.reporting_date   = rpp.reporting_date
+  WHERE rd.reporting_period = 'Month'
+
+  UNION ALL
+
+  SELECT
+      rd.reporting_period,
+      rd.reporting_date,
+      IFNULL(rpp.total_rentals, 0) AS total_rentals
+  FROM reporting_dates rd
+  LEFT JOIN rentals_per_period rpp
+    ON rd.reporting_period = rpp.reporting_period
+   AND rd.reporting_date   = rpp.reporting_date
+  WHERE rd.reporting_period = 'Year'
+)
+
+SELECT *
+FROM final;
